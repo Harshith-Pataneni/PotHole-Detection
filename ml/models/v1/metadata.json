@@ -1,0 +1,70 @@
+{
+  "model_version": "v1",
+  "model_type": "ResNet-50 Transfer Learning",
+  "classes": [
+    "normal",
+    "pothole"
+  ],
+  "class_to_idx": {
+    "normal": 0,
+    "pothole": 1
+  },
+  "image_size": [
+    224,
+    224,
+    3
+  ],
+  "recommended_pothole_threshold": 0.75,
+  "evaluation_metrics": {
+    "test_accuracy": 0.9792,
+    "test_precision": 0.9889,
+    "test_recall": 0.978,
+    "test_f1": 0.9834,
+    "test_roc_auc": 0.999,
+    "confusion_matrix": {
+      "true_positive": 89,
+      "false_positive": 1,
+      "true_negative": 52,
+      "false_negative": 2
+    },
+    "test_set_size": 144
+  },
+  "samples": [
+    {
+      "file": "115.jpg",
+      "true_label": "pothole",
+      "pothole_prob": 0.9984,
+      "estimated_severity": "HIGH"
+    },
+    {
+      "file": "116.jpg",
+      "true_label": "pothole",
+      "pothole_prob": 0.9943,
+      "estimated_severity": "HIGH"
+    },
+    {
+      "file": "119.jpg",
+      "true_label": "pothole",
+      "pothole_prob": 0.2185,
+      "estimated_severity": "LOW"
+    },
+    {
+      "file": "10.jpg",
+      "true_label": "normal",
+      "pothole_prob": 0.0697,
+      "estimated_severity": "LOW"
+    },
+    {
+      "file": "118.jpg",
+      "true_label": "normal",
+      "pothole_prob": 0.024,
+      "estimated_severity": "LOW"
+    },
+    {
+      "file": "128.jpg",
+      "true_label": "normal",
+      "pothole_prob": 0.022,
+      "estimated_severity": "LOW"
+    }
+  ]
+}

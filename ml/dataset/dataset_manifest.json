@@ -1,0 +1,17 @@
+{
+  "train": {
+    "pothole": 427,
+    "normal": 244,
+    "total": 671
+  },
+  "val": {
+    "pothole": 92,
+    "normal": 52,
+    "total": 144
+  },
+  "test": {
+    "pothole": 91,
+    "normal": 53,
+    "total": 144
+  }
+}
