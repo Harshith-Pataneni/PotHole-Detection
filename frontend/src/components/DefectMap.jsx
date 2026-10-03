@@ -50,14 +50,19 @@ export default function DefectMap({ onSelectReport }) {
       zoomControl: true
     });
 
-    // Dark-friendly OpenStreetMap tile layer (CartoDB Dark Matter or Standard OSM)
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    // Standard OpenStreetMap tile layer (Reliable, free, no API key needed)
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       maxZoom: 19
     }).addTo(map);
 
     markersLayerRef.current = L.layerGroup().addTo(map);
     mapInstanceRef.current = map;
+
+    // Force map to re-measure container size in case rendered inside tabs
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 250);
 
     return () => {
       map.remove();

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Navbar from './components/Navbar';
 import ReportForm from './components/ReportForm';
 import DefectMap from './components/DefectMap';
@@ -6,7 +6,8 @@ import AdminPortal from './components/AdminPortal';
 import ModelTelemetry from './components/ModelTelemetry';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('report'); // 'report' | 'map' | 'telemetry' | 'admin'
+  const [viewMode, setViewMode] = useState('citizen'); // 'citizen' | 'admin'
+  const [activeTab, setActiveTab] = useState('report'); // Citizen: 'report' | 'map'  Admin: 'admin' | 'map' | 'telemetry'
   const [adminToken, setAdminToken] = useState(() => localStorage.getItem('civic_admin_token') || null);
   const [adminUser, setAdminUser] = useState(() => {
     try {
@@ -22,6 +23,7 @@ export default function App() {
     setAdminUser(userData);
     localStorage.setItem('civic_admin_token', token);
     localStorage.setItem('civic_admin_user', JSON.stringify(userData));
+    setViewMode('admin');
     setActiveTab('admin');
   };
 
@@ -30,6 +32,7 @@ export default function App() {
     setAdminUser(null);
     localStorage.removeItem('civic_admin_token');
     localStorage.removeItem('civic_admin_user');
+    setViewMode('citizen');
     setActiveTab('report');
   };
 
@@ -43,35 +46,51 @@ export default function App() {
 
       {/* Navigation */}
       <Navbar
+        viewMode={viewMode}
+        setViewMode={setViewMode}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         adminUser={adminUser}
         onLogout={handleLogout}
-        onOpenLogin={() => setActiveTab('admin')}
       />
 
       {/* Main Views */}
       <main style={{ flex: 1 }}>
-        {activeTab === 'report' && (
-          <ReportForm onReportSubmitted={handleReportSubmitted} />
+        {/* CITIZEN VIEWS */}
+        {viewMode === 'citizen' && (
+          <>
+            {activeTab === 'report' && (
+              <ReportForm onReportSubmitted={handleReportSubmitted} />
+            )}
+            {activeTab === 'map' && (
+              <DefectMap onSelectReport={(r) => {
+                console.log('Selected report from citizen map:', r);
+              }} />
+            )}
+          </>
         )}
 
-        {activeTab === 'map' && (
-          <DefectMap onSelectReport={(r) => {
-            console.log('Selected report from map:', r);
-            setActiveTab('admin');
-          }} />
-        )}
+        {/* ADMIN VIEWS */}
+        {viewMode === 'admin' && (
+          <>
+            {activeTab === 'admin' && (
+              <AdminPortal
+                adminToken={adminToken}
+                onLoginSuccess={handleLoginSuccess}
+              />
+            )}
 
-        {activeTab === 'telemetry' && (
-          <ModelTelemetry adminToken={adminToken} />
-        )}
+            {activeTab === 'map' && (
+              <DefectMap onSelectReport={(r) => {
+                console.log('Selected report from admin map:', r);
+                setActiveTab('admin');
+              }} />
+            )}
 
-        {activeTab === 'admin' && (
-          <AdminPortal
-            adminToken={adminToken}
-            onLoginSuccess={handleLoginSuccess}
-          />
+            {activeTab === 'telemetry' && (
+              <ModelTelemetry adminToken={adminToken} />
+            )}
+          </>
         )}
       </main>
 
@@ -89,9 +108,9 @@ export default function App() {
             CivicWatch Intelligent Road Infrastructure Platform &bull; PyTorch ResNet-50 CV Model (v1)
           </div>
           <div style={{ display: 'flex', gap: '16px' }}>
-            <span>Zero Data Leakage Pipeline</span>
+            <span>Smart Redundancy Shield</span>
             <span>Grad-CAM Explainability</span>
-            <span>FastAPI + PostgreSQL Ready</span>
+            <span>Resend Alerts Integrated</span>
           </div>
         </div>
       </footer>

@@ -89,16 +89,47 @@ class StorageService:
         dest_path = self.upload_dir / filename
         thumb_path = self.thumbnails_dir / thumb_filename
 
-        # Save main image (normalized JPEG)
+        # Save main image locally (normalized JPEG)
         pil_image.save(dest_path, "JPEG", quality=88, optimize=True)
 
-        # Create & save thumbnail
+        # Create & save thumbnail locally
         thumbnail = pil_image.copy()
         thumbnail.thumbnail((320, 240), Image.Resampling.LANCZOS)
         thumbnail.save(thumb_path, "JPEG", quality=80)
 
         image_url = f"/uploads/potholes/{filename}"
         thumb_url = f"/uploads/potholes/thumbnails/{thumb_filename}"
+
+        # If Supabase storage is configured, upload to Supabase bucket
+        if settings.STORAGE_PROVIDER == "supabase" and settings.SUPABASE_KEY and settings.SUPABASE_URL:
+            try:
+                import httpx
+                headers = {
+                    "Authorization": f"Bearer {settings.SUPABASE_KEY}",
+                    "apikey": settings.SUPABASE_KEY,
+                    "Content-Type": "image/jpeg"
+                }
+                
+                # Upload full image
+                with open(dest_path, "rb") as f:
+                    img_bytes = f.read()
+                upload_endpoint = f"{settings.SUPABASE_URL}/storage/v1/object/{settings.SUPABASE_BUCKET}/{filename}"
+                resp = httpx.post(upload_endpoint, headers=headers, content=img_bytes, timeout=10.0)
+                
+                # Upload thumbnail
+                with open(thumb_path, "rb") as f:
+                    thumb_bytes = f.read()
+                thumb_endpoint = f"{settings.SUPABASE_URL}/storage/v1/object/{settings.SUPABASE_BUCKET}/{thumb_filename}"
+                httpx.post(thumb_endpoint, headers=headers, content=thumb_bytes, timeout=10.0)
+
+                if resp.status_code in [200, 201]:
+                    image_url = f"{settings.SUPABASE_URL}/storage/v1/object/public/{settings.SUPABASE_BUCKET}/{filename}"
+                    thumb_url = f"{settings.SUPABASE_URL}/storage/v1/object/public/{settings.SUPABASE_BUCKET}/{thumb_filename}"
+                    from app.core.logging import logger
+                    logger.info(f"Image uploaded to Supabase Storage CDN: {image_url}")
+            except Exception as e:
+                from app.core.logging import logger
+                logger.warning(f"Supabase Storage upload failed, falling back to local storage: {e}")
 
         return image_url, thumb_url, pil_image
 
@@ -107,7 +138,29 @@ class StorageService:
         heatmap_filename = f"{file_id}_heatmap.jpg"
         dest_path = self.heatmaps_dir / heatmap_filename
         heatmap_image.save(dest_path, "JPEG", quality=85)
-        return f"/uploads/potholes/heatmaps/{heatmap_filename}"
+        
+        heatmap_url = f"/uploads/potholes/heatmaps/{heatmap_filename}"
+        
+        # If Supabase storage is configured, upload heatmap as well
+        if settings.STORAGE_PROVIDER == "supabase" and settings.SUPABASE_KEY and settings.SUPABASE_URL:
+            try:
+                import httpx
+                headers = {
+                    "Authorization": f"Bearer {settings.SUPABASE_KEY}",
+                    "apikey": settings.SUPABASE_KEY,
+                    "Content-Type": "image/jpeg"
+                }
+                with open(dest_path, "rb") as f:
+                    heatmap_bytes = f.read()
+                heatmap_endpoint = f"{settings.SUPABASE_URL}/storage/v1/object/{settings.SUPABASE_BUCKET}/{heatmap_filename}"
+                resp = httpx.post(heatmap_endpoint, headers=headers, content=heatmap_bytes, timeout=10.0)
+                if resp.status_code in [200, 201]:
+                    heatmap_url = f"{settings.SUPABASE_URL}/storage/v1/object/public/{settings.SUPABASE_BUCKET}/{heatmap_filename}"
+            except Exception as e:
+                from app.core.logging import logger
+                logger.warning(f"Supabase heatmap upload fallback to local: {e}")
+
+        return heatmap_url
 
 
 storage_service = StorageService()

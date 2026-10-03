@@ -6,8 +6,8 @@ import {
 
 export default function AdminPortal({ adminToken, onLoginSuccess }) {
   // Login Form States
-  const [loginEmail, setLoginEmail] = useState('admin@civicworks.org');
-  const [loginPassword, setLoginPassword] = useState('admin_secure_change_me_123');
+  const [loginEmail, setLoginEmail] = useState('harshithpataneni@gmail.com');
+  const [loginPassword, setLoginPassword] = useState('admin123');
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState(null);
 
@@ -408,7 +408,14 @@ export default function AdminPortal({ adminToken, onLoginSuccess }) {
                     />
                   </td>
                   <td style={{ padding: '10px 16px', fontWeight: 700, color: '#ffffff' }}>
-                    {report.public_id}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span>{report.public_id}</span>
+                      {report.confirmations_count > 1 && (
+                        <span className="badge badge-high" style={{ fontSize: '10px', padding: '2px 5px' }} title={`${report.confirmations_count} citizens reported this defect`}>
+                          {report.confirmations_count}x
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td style={{ padding: '10px 16px', color: 'var(--text-secondary)', maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {report.address_text || `${report.latitude.toFixed(4)}, ${report.longitude.toFixed(4)}`}

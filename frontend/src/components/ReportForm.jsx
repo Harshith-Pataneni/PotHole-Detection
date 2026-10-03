@@ -238,14 +238,43 @@ export default function ReportForm({ onReportSubmitted }) {
                 </div>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <h2 style={{ fontSize: '22px', color: '#ffffff' }}>Pothole Verified & Report Filed</h2>
+                    <h2 style={{ fontSize: '22px', color: '#ffffff' }}>
+                      {submissionResult.is_duplicate ? 'Existing Defect Confirmed & Upvoted' : 'Pothole Verified & Report Filed'}
+                    </h2>
                     <span className="badge badge-verified">{submissionResult.report.public_id}</span>
+                    {submissionResult.confirmations_count > 1 && (
+                      <span className="badge badge-high" style={{ fontSize: '11px' }}>
+                        {submissionResult.confirmations_count}x Confirmed
+                      </span>
+                    )}
                   </div>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>
-                    Report has been registered in the municipal queue with automated administrative notification.
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginTop: '4px' }}>
+                    {submissionResult.is_duplicate
+                      ? 'A ticket already exists for this exact road location. Your submission has verified and raised priority on this existing defect without creating redundant tickets!'
+                      : 'Report has been registered in the municipal queue with automated administrative notification.'}
                   </p>
                 </div>
               </div>
+
+              {submissionResult.is_duplicate && (
+                <div style={{
+                  background: 'rgba(59, 130, 246, 0.1)',
+                  border: '1px solid rgba(59, 130, 246, 0.3)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '12px 16px',
+                  marginBottom: '20px',
+                  fontSize: '13px',
+                  color: '#93c5fd',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px'
+                }}>
+                  <Sparkles size={18} color="#60a5fa" />
+                  <span>
+                    <strong>Smart Redundancy Shield:</strong> {submissionResult.guidance}
+                  </span>
+                </div>
+              )}
 
               {/* Telemetry Stats Banner */}
               <div style={{

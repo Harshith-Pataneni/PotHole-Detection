@@ -38,6 +38,8 @@ class ReportPublicItem(BaseModel):
     image_url: str
     thumbnail_url: Optional[str] = None
     address_text: Optional[str] = None
+    confirmations_count: int = 1
+    image_hash: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -71,5 +73,7 @@ class ReportSubmissionResponse(BaseModel):
     verified: bool
     confidence: float
     estimated_severity: str
+    is_duplicate: bool = False
+    confirmations_count: int = 1
     report: Optional[ReportDetail] = None
     guidance: Optional[str] = None

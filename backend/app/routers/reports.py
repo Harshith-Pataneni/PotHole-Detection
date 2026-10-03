@@ -27,6 +27,53 @@ from app.config import settings
 router = APIRouter(prefix="/api/v1/reports", tags=["Reports"])
 
 
+import math
+from PIL import Image
+
+
+def compute_image_dhash(image: Image.Image) -> str:
+    """Computes a 64-bit difference hash (dHash) for perceptual image comparison."""
+    try:
+        # Convert to grayscale and resize to 9x8
+        img = image.convert("L").resize((9, 8), resample=Image.Resampling.BILINEAR)
+        pixels = list(img.getdata())
+        diff = []
+        for row in range(8):
+            for col in range(8):
+                pixel_left = pixels[row * 9 + col]
+                pixel_right = pixels[row * 9 + col + 1]
+                diff.append(pixel_left > pixel_right)
+        hash_int = 0
+        for bit in diff:
+            hash_int = (hash_int << 1) | int(bit)
+        return f"{hash_int:016x}"
+    except Exception as e:
+        logger.warning(f"Perceptual dHash calculation failed: {e}")
+        return ""
+
+
+def hamming_distance(h1: str, h2: str) -> int:
+    """Calculates Hamming distance between two hex hashes (smaller distance = higher visual similarity)."""
+    try:
+        val = int(h1, 16) ^ int(h2, 16)
+        return bin(val).count("1")
+    except Exception:
+        return 64
+
+
+def haversine_distance_meters(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Calculates the great-circle distance between two GPS points in meters."""
+    r = 6371000.0  # Earth radius in meters
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    delta_phi = math.radians(lat2 - lat1)
+    delta_lambda = math.radians(lon2 - lon1)
+    a = (math.sin(delta_phi / 2.0) ** 2 +
+         math.cos(phi1) * math.cos(phi2) * (math.sin(delta_lambda / 2.0) ** 2))
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return r * c
+
+
 async def generate_public_id(db: AsyncSession) -> str:
     year = datetime.now(timezone.utc).year
     query = select(func.count(Report.id))
@@ -86,17 +133,66 @@ async def submit_report(
             )
         )
 
-    # 4. Save Grad-CAM Heatmap overlay
+    # 4. Deduplication & Redundancy Check (Geospatial Proximity + Perceptual Image Hashing)
+    img_hash = compute_image_dhash(pil_image)
+    
+    # Query active/open defects nearby (+/- ~0.00035 deg latitude/longitude is ~30-40 meters)
+    lat_delta = 0.00035
+    lon_delta = 0.00035
+    active_statuses = ["PENDING", "UNDER_REVIEW", "VERIFIED"]
+    
+    nearby_query = select(Report).where(
+        Report.status.in_(active_statuses),
+        Report.latitude.between(latitude - lat_delta, latitude + lat_delta),
+        Report.longitude.between(longitude - lon_delta, longitude + lon_delta)
+    )
+    nearby_res = await db.execute(nearby_query)
+    nearby_reports = nearby_res.scalars().all()
+
+    for existing_rep in nearby_reports:
+        dist_m = haversine_distance_meters(latitude, longitude, existing_rep.latitude, existing_rep.longitude)
+        
+        # Check if coordinates match closely
+        if dist_m <= 25.0:
+            is_same_image = False
+            if existing_rep.image_hash:
+                h_dist = hamming_distance(img_hash, existing_rep.image_hash)
+                if h_dist <= 12:  # Strong visual perceptual match
+                    is_same_image = True
+            
+            # If within 15 meters OR perceptual hash matched within 25m
+            if dist_m <= 15.0 or is_same_image:
+                logger.info(f"Duplicate defect submission detected for {existing_rep.public_id} (Dist: {dist_m:.1f}m, Hash match: {is_same_image})")
+                
+                # Upvote and increment confirmation count
+                existing_rep.confirmations_count = (existing_rep.confirmations_count or 1) + 1
+                existing_rep.updated_at = datetime.now(timezone.utc)
+                await db.commit()
+                await db.refresh(existing_rep)
+
+                return ReportSubmissionResponse(
+                    success=True,
+                    message=f"Defect already recorded at this location ({existing_rep.public_id}). Your report confirmed and upvoted this incident!",
+                    verified=True,
+                    confidence=confidence,
+                    estimated_severity=existing_rep.estimated_severity,
+                    is_duplicate=True,
+                    confirmations_count=existing_rep.confirmations_count,
+                    report=ReportDetail.model_validate(existing_rep),
+                    guidance=f"An active road defect ({existing_rep.public_id}) already exists within {dist_m:.1f}m of your coordinates. We merged your confirmation to raise municipal priority."
+                )
+
+    # 5. Save Grad-CAM Heatmap overlay
     report_uuid = str(uuid.uuid4())
     heatmap_url = storage_service.save_heatmap_overlay(heatmap_img, report_uuid)
 
-    # 5. Reverse Geocode (Keyless, background-friendly)
+    # 6. Reverse Geocode (Keyless, background-friendly)
     address_text = await geocoding_service.reverse_geocode(latitude, longitude)
 
-    # 6. Generate Clean Sequential Public ID
+    # 7. Generate Clean Sequential Public ID
     public_id = await generate_public_id(db)
 
-    # 7. Persist to Database
+    # 8. Persist to Database
     report = Report(
         id=report_uuid,
         public_id=public_id,
@@ -112,6 +208,8 @@ async def submit_report(
         model_version=prediction["model_version"],
         estimated_severity=severity,
         status="PENDING",
+        confirmations_count=1,
+        image_hash=img_hash,
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc)
     )
@@ -120,7 +218,7 @@ async def submit_report(
     await db.commit()
     await db.refresh(report)
 
-    # 8. Asynchronous Admin Notification
+    # 9. Asynchronous Admin Notification
     report_data = {
         "public_id": public_id,
         "latitude": latitude,
@@ -141,6 +239,8 @@ async def submit_report(
         verified=True,
         confidence=confidence,
         estimated_severity=severity,
+        is_duplicate=False,
+        confirmations_count=1,
         report=ReportDetail.model_validate(report),
         guidance="Pothole verified by computer vision model and queued for administrative review."
     )

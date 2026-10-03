@@ -45,6 +45,10 @@ class Report(Base):
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="PENDING", index=True)
     admin_notes: Mapped[str] = mapped_column(Text, nullable=True)
 
+    # Deduplication & Redundancy Tracking
+    confirmations_count: Mapped[int] = mapped_column(default=1, nullable=False)
+    image_hash: Mapped[str] = mapped_column(String(64), nullable=True, index=True)
+
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, index=True, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False)

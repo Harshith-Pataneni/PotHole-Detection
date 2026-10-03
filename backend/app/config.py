@@ -66,5 +66,10 @@ class Settings(BaseSettings):
     # Reverse Geocoding
     REVERSE_GEOCODING_ENABLED: bool = True
 
+    # Supabase Configuration
+    SUPABASE_URL: str = ""
+    SUPABASE_KEY: str = ""
+    SUPABASE_BUCKET: str = "pothole-images"
+
 
 settings = Settings()
